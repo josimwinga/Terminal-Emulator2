@@ -1,0 +1,87 @@
+README::SHELL_2
+
+@jsimwing
+11.5.15
+Shell_2:
+11.13.15
+
+--------------------------------------------------------------
+Program Structure:
+
+This program uses an infinite while loop and implements the REPL loop in the Main function. 
+-------------------------------------
+
+***REPL loop:
+First I call reap to reap old processes. Then I make a buffer to hold the commandline input, then I write a prompt to the stdoutput. The standard input is read into the buffer using the read function and then sent to my function parseline().
+
+**Parseline:
+This function:
+	-iterates throuh the commandline input and seperates each argument into a sperate index in a new array 
+	-seeks out redirection symbols and calls the helper function set_redirection()
+
+**Set_Redirection:
+This function:
+	-checks the legality of redirection
+	-stores the inforation pertaining to said redirection in an array.
+
+Next the parsed commandline is evaluated in the function evaluate().
+
+**Evaluate
+This function:
+	-checks for empty lines and returns if the user entered no charcters
+	-checks for redirection and calls the function redirection helper
+	-checks for builtin commands and calls the check_builtins function
+	-calls the function fork
+	-adds the new job to the job list
+	-checks the pid value, if the pid was successful, it begins the child process, sets signal handlers back to default, and sets the current jog pgid, and the function execv is called, using the parsed commandline as argumets
+	-If this is a new background process, a message is sent to the stdout
+	-If this is a new foreground process, waitpid is called to wait for the process to finish, catching signals along the way
+	-The function returns back to the main for loop
+
+**Check Fg Signals//Reap
+These functions call waitpid and write appropriate messages to stdout depending on the change found in the processes. Check fg signals is used only if a new foreground process has started.
+
+**Redirection helper:
+This function: 
+	-checks for the type of redirection
+	-calls the open function to open the output/input file
+	-calls dup 2 to change the source of standard input/output
+	-calls the close function to safely close the output/input file
+
+**Check_builtins:
+This function:
+	-compares the first argument in the parsed commandline with each builtin command
+	-if they match, it calls a helper function corresponding to the builtin command
+
+**<builtin command> helper
+These functions:
+	-call the system call that corresponds to the builtin command
+	cd: chdir; ln: link; exit: exit; rm: unlink
+
+**clear_buf
+This function:
+	-clears the buffer that is used to store the commandline input
+
+--------------------------------------------------------------
+Known Bugs: 
+
+-------------------------------------
+**This program currently does not handle input and output redirection at the same time. This calses the program to "exit abnormally" when the test suite is called [< cal.txt /usr/bin/xargs /usr/bin/banner]
+
+** ">>" redirection is not working properly
+Here is my code for that type of redirection:
+	fd = open(redir_info[1], O_APPEND | O_RDWR | O_CREAT, 0666);
+	if(fd == -1){
+		perror(">>");
+	}
+	dup2(STDOUT_FILENO, fd);
+	if(close(fd) == -1){
+		perror(">> close");
+	}
+
+I am using the flag O_APPEND so that the output will be placed at the end of the output file (also RDWR and CRET so that the file can be read and/or created if it doesn't alredy exist) but this flag doesn't seem to be taking. I ran gdb as suggested on Piazza to see where the flags were being set but could not find anything. 
+
+**There is a error when the test suite is called because of a broken pipe [erno 32]
+
+**This program fails trace 37, 4 mysplit processes were created instead of 2
+**This program fails trace 38-40, it infintly loops and a read error:input/output error is found
